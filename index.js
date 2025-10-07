@@ -1,7 +1,5 @@
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@adiwajshing/baileys');
 const express = require('express');
-const fs = require('fs');
-const path = require('path');
 const { handleMessage } = require('./lib/messageHandler');
 
 async function start() {
@@ -17,7 +15,7 @@ async function start() {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
-    if (!messages || !messages[0]) return;
+    if (!messages || !messages.length) return;
     const msg = messages[0];
     await handleMessage(sock, msg);
   });
@@ -26,7 +24,7 @@ async function start() {
     const { connection } = update;
     if (connection === 'close') {
       console.log('[!] Conexión cerrada, reiniciando...');
-      start();
+      start();  // ojo con recursión, puede causar múltiples servidores
     } else if (connection === 'open') {
       console.log('✅ Bot conectado a WhatsApp');
     }
@@ -35,8 +33,24 @@ async function start() {
   // HTTP server para ping desde UptimeRobot
   const app = express();
   app.get('/', (_, res) => res.send('🤖 Bot activo en Render'));
+
   const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`🌐 Servidor corriendo en http://localhost:${port}`));
+  const server = app.listen(port, () => {
+    console.log(`🌐 Servidor corriendo en puerto ${port}`);
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`⚠️ Puerto ${port} ya en uso, intentando otro puerto...`);
+      // puedes intentar otro puerto alternativo
+      const altPort = port + 1;
+      app.listen(altPort, () => {
+        console.log(`Servidor escuchando en puerto alternativo ${altPort}`);
+      });
+    } else {
+      throw err;
+    }
+  });
 }
 
 start();
