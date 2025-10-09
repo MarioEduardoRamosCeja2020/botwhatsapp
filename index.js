@@ -20,6 +20,28 @@ async function start() {
     await handleMessage(sock, msg);
   });
 
+  // en index.js o el archivo que crea el socket
+
+    sock.ev.on('group-participants.update', async (update) => {
+    try {
+        const { id: groupId, participants, action } = update;
+        // action puede ser 'add', 'remove', 'promote', 'demote'
+        if (action === 'add') {
+        for (const participant of participants) {
+            // participant es el JID del usuario nuevo
+            const welcomeText = `👋 Bienvenido al grupo, @${participant.split('@')[0]}!`;
+            await sock.sendMessage(groupId, {
+            text: welcomeText,
+            mentions: [participant]
+            });
+        }
+        }
+    } catch (err) {
+        console.error('Error en bienvenida de nuevo miembro:', err);
+    }
+    });
+
+
   sock.ev.on('connection.update', (update) => {
     const { connection } = update;
     if (connection === 'close') {
